@@ -127,4 +127,11 @@
   html {
     @apply font-sans;
   }
+  
+}
+
+.ag-theme-quartz {
+  --ag-border-color: #d1d5db; /* Tailwind gray-300 */
+  --ag-row-border-style: solid;
+  --ag-cell-horizontal-border: solid;
 }
