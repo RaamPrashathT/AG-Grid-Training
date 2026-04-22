@@ -35,26 +35,25 @@ export const getShipmentColumnDefs = (): ColDef<Shipment>[] => [
     {
         field: "quantity",
         headerName: "Quantity",
-        editable: true,
+        editable: false,
         type: "numericColumn",
         width: 120,
-        // FIX: parse the edited string back to a number before it hits onCellValueChanged.
         valueParser: (params) => {
             const n = Number(params.newValue);
-            return isNaN(n) ? params.oldValue : n;
+            return Number.isNaN(n) ? params.oldValue : n;
         },
     },
     {
         field: "weight",
-        headerName: "Weight (kg)",
+        headerName: "Weight",
         editable: true,
         type: "numericColumn",
         cellRenderer: WeightCellRenderer,
         width: 180,
-        // FIX: same as quantity — weight must arrive as a number.
+
         valueParser: (params) => {
             const n = Number(params.newValue);
-            return isNaN(n) ? params.oldValue : n;
+            return Number.isNaN(n) ? params.oldValue : n;
         },
     },
     {

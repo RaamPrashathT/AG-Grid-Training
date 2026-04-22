@@ -36,9 +36,6 @@ export const WeightCellRenderer: React.FC<CustomCellRendererProps> = (
 
     if (status === "error") {
         return (
-            // FIX: Don't render params.value here — it's the stale optimistic
-            // value. Show a fixed label; the cell refreshes to the reverted
-            // value once useShipments updates row data.
             <div className="flex items-center gap-2 font-medium text-red-700">
                 <span>❌</span>
                 <span className="text-sm">Invalid — reverted</span>
@@ -46,7 +43,6 @@ export const WeightCellRenderer: React.FC<CustomCellRendererProps> = (
         );
     }
 
-    // Normal / idle state
     return (
         <div className="flex items-center gap-1">
             <span>{params.value}</span>
