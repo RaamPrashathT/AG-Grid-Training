@@ -1,66 +1,128 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import {
-    ColDef,
     ModuleRegistry,
     AllCommunityModule,
-    GetRowIdParams,
     themeQuartz,
+    type ColDef,
+    type GetRowIdParams,
 } from "ag-grid-community";
 
 import { useRegions } from "../hooks/useRegions";
+import { useLazyFetchTrades } from "../hooks/useTrades";
 import { useDebounce } from "../hooks/useDebounce";
-import type { GridRowData } from "../schema/trade.schema";
+import { useHierarchyStore } from "../hooks/useHierarchyStore";
+import { useTradeUpdates } from "../hooks/useTradeUpdates";
+import { DOTS, usePagination } from "../hooks/usePagination";
+
+import { columnDefs, type MonitorRowData } from "./grid/columnDefs";
+
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type SortState = { field: string; direction: "asc" | "desc" } | null;
+
+// ── Sort helper ───────────────────────────────────────────────────────────────
+//
+// AG Grid's built-in sort is disabled (comparator: () => 0) because our rows
+// are a manually constructed flat array — sorting must happen on parents only,
+// before children are injected.
+
+function cmp(a: string | number, b: string | number, dir: "asc" | "desc"): number {
+    if (a < b) return dir === "asc" ? -1 : 1;
+    if (a > b) return dir === "asc" ?  1 : -1;
+    return 0;
+}
+
+function sortValue(row: MonitorRowData, field: string): string | number {
+    switch (field) {
+        case "hierarchy":
+            return ("name" in row ? row.name as string : "") ?? "";
+        case "currencyOrPrice":
+            return row.aggregatedTotal ?? ("currency" in row ? row.currency as string : "") ?? "";
+        default:
+            return (row[field as keyof MonitorRowData] as string | number) ?? "";
+    }
+}
+
+function sortParents(rows: MonitorRowData[], sort: SortState): MonitorRowData[] {
+    if (!sort) return rows;
+    return [...rows].sort((a, b) => cmp(sortValue(a, sort.field), sortValue(b, sort.field), sort.direction));
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function TradeMonitorGrid() {
-    const gridRef = useRef<AgGridReact<GridRowData>>(null);
+    const gridRef = useRef<AgGridReact<MonitorRowData>>(null);
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
 
     const [searchInput, setSearchInput] = useState("");
     const debouncedSearch = useDebounce(searchInput, 300);
 
+    const [sort, setSort] = useState<SortState>(null);
+
+    // ── Data fetching ─────────────────────────────────────────────────────────
+
     const { data, isLoading, isError } = useRegions({
-        page: 1,
-        perPage: 10,
+        page: currentPage,
+        perPage: pageSize,
         search: debouncedSearch,
     });
 
-    const columnDefs = useMemo<ColDef<GridRowData>[]>(
-        () => [
-            {
-                headerName: "Region Name",
-                field: "name",
-            },
-            {
-                headerName: "Trading Desk",
-                field: "tradingDesk",
-            },
-            {
-                headerName: "Currency",
-                field: "currency",
-            },
-            {
-                headerName: "Created At",
-                field: "createdAt",
-            },
-        ],
-        [],
+    const paginationRange = usePagination(data?.items ?? 0, pageSize, currentPage);
+
+    // ── Hierarchy ─────────────────────────────────────────────────────────────
+
+    const { mutateAsync: fetchTrades } = useLazyFetchTrades();
+    const hierarchy = useHierarchyStore(fetchTrades);
+
+    // ── Visible rows ──────────────────────────────────────────────────────────
+
+    const visibleRows = useMemo(() => {
+        const sorted = sortParents(data?.data ?? [], sort);
+        return hierarchy.getVisibleRows(sorted);
+    }, [data, hierarchy, sort]);
+
+    // ── AG Grid context ───────────────────────────────────────────────────────
+
+    const gridContext = useMemo(
+        () => ({
+            toggleExpand: hierarchy.toggle,
+            isExpanded:   hierarchy.isExpanded,
+        }),
+        [hierarchy],
     );
 
     const defaultColDef = useMemo<ColDef>(
-        () => ({
-            flex: 1,
-            minWidth: 150,
-        }),
+        () => ({ sortable: true, comparator: () => 0 }),
         [],
     );
 
-    const getRowId = useMemo(() => {
-        return (params: GetRowIdParams<GridRowData>) => params.data.id;
-    }, []);
+    const getRowId = useMemo(
+        () => (params: GetRowIdParams<MonitorRowData>) => params.data.id,
+        [],
+    );
+
+    // ── Real-time updates ─────────────────────────────────────────────────────
+
+    useTradeUpdates({ gridRef, hierarchy });
+
+    // ── Render ────────────────────────────────────────────────────────────────
 
     if (isError) {
         return <div className="p-4 text-red-600">Failed to load regions.</div>;
@@ -72,21 +134,69 @@ export function TradeMonitorGrid() {
                 type="text"
                 placeholder="Search regions..."
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={(e) => {
+                    setSearchInput(e.target.value);
+                    setCurrentPage(1);
+                }}
                 className="border px-3 py-2 rounded"
             />
 
             <div style={{ height: 500 }}>
-                <AgGridReact<GridRowData>
+                <AgGridReact<MonitorRowData>
                     ref={gridRef}
                     theme={themeQuartz}
-                    rowData={data?.data || []}
+                    rowData={visibleRows}
                     columnDefs={columnDefs}
                     defaultColDef={defaultColDef}
                     getRowId={getRowId}
+                    context={gridContext}
                     loading={isLoading}
+                    onSortChanged={(e) => {
+                        const sorted = e.api.getColumnState().find((c) => c.sort != null);
+                        setSort(
+                            sorted
+                                ? { field: sorted.colId!, direction: sorted.sort as "asc" | "desc" }
+                                : null,
+                        );
+                    }}
                 />
             </div>
+
+            {(data?.pages ?? 0) > 1 && (
+                <Pagination>
+                    <PaginationContent>
+                        <PaginationItem>
+                            <PaginationPrevious
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                            />
+                        </PaginationItem>
+
+                        {paginationRange.map((page, i) => (
+                            <PaginationItem key={`${page}-${i}`}>
+                                {page === DOTS ? (
+                                    <PaginationEllipsis />
+                                ) : (
+                                    <PaginationLink
+                                        onClick={() => setCurrentPage(page as number)}
+                                        isActive={currentPage === page}
+                                        className="cursor-pointer"
+                                    >
+                                        {page}
+                                    </PaginationLink>
+                                )}
+                            </PaginationItem>
+                        ))}
+
+                        <PaginationItem>
+                            <PaginationNext
+                                onClick={() => setCurrentPage((p) => Math.min(data?.pages ?? p, p + 1))}
+                                className={currentPage === (data?.pages ?? 1) ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                            />
+                        </PaginationItem>
+                    </PaginationContent>
+                </Pagination>
+            )}
         </div>
     );
 }

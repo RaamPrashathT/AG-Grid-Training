@@ -11,6 +11,7 @@ import {
 
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { useShipments } from "../hooks/useShipments";
+import type { Shipment } from "../schema/shipment.schema";
 
 import { getShipmentColumnDefs } from "./grid/shipmentColumnDefs";
 import { GridControls } from "./GridControls";
@@ -29,6 +30,7 @@ export const ShipmentManifest = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [pageSize, setPageSize] = useState(25);
+    const [selectedShipments, setSelectedShipments] = useState<Shipment[]>([]);
 
     const columnDefs = useMemo(() => getShipmentColumnDefs(), []);
     const defaultColDef = useMemo<ColDef>(
@@ -121,7 +123,9 @@ export const ShipmentManifest = () => {
                 isOnline={isOnline}
                 filterThreshold={filterThreshold}
                 setFilterThreshold={setFilterThreshold}
+                selectedShipments={selectedShipments}
             />
+            
 
             <div className="ag-theme-quartz h-[560px] border-b border-border">
                 <AgGridReact
@@ -136,11 +140,11 @@ export const ShipmentManifest = () => {
                     onCellValueChanged={onCellValueChanged}
                     isExternalFilterPresent={isExternalFilterPresent}
                     doesExternalFilterPass={doesExternalFilterPass}
-                    pagination={true}
-                    paginationPageSize={pageSize}
-                    suppressPaginationPanel={true}
-                    onFirstDataRendered={syncPaginationState}
-                    onPaginationChanged={syncPaginationState}
+                    rowSelection="multiple"
+                    onSelectionChanged={(event) => {
+                        const selectedRows = event.api.getSelectedRows() as Shipment[];
+                        setSelectedShipments(selectedRows);
+                    }}
                 />
             </div>
 

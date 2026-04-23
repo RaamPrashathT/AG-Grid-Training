@@ -2,18 +2,13 @@ import type { ColDef } from "ag-grid-community";
 import type { Shipment } from "../../schema/shipment.schema";
 import { WeightCellRenderer } from "./WeightCellRenderer";
 
-/**
- * Fix: AG Grid's default cell editor always returns strings.
- * Without a valueParser, editing `quantity` saves "42" (string) instead of
- * 42 (number). This silently breaks:
- *   - The external filter: "42" * 10 = NaN > threshold → always false
- *   - Server validation in useShipments: newValue < 0 compares string to number
- *   - Any server-side numeric logic
- *
- * valueParser runs after editing before onCellValueChanged fires, converting
- * the raw string back to the correct type.
- */
 export const getShipmentColumnDefs = (): ColDef<Shipment>[] => [
+    {
+        headerCheckboxSelection: true,
+        checkboxSelection: true,
+        width: 50,
+        pinned: "left",
+    },
     {
         field: "id",
         headerName: "Shipment ID",
