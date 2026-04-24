@@ -51,6 +51,7 @@ export const getShipmentColumnDefs = (): ColDef<Shipment>[] => [
             return Number.isNaN(n) ? params.oldValue : n;
         },
     },
+    
     {
         field: "updatedAt",
         headerName: "Updated At",

@@ -21,7 +21,6 @@ export function useTradeUpdates({ gridRef, hierarchy, intervalMs = 500 }: Params
             const allChildren = hierarchy.getAllChildren();
             if (allChildren.length === 0) return;
 
-            // Pick up to 10 random children to update
             const targets = allChildren
                 .toSorted(() => 0.5 - Math.random())
                 .slice(0, 10);
@@ -29,7 +28,6 @@ export function useTradeUpdates({ gridRef, hierarchy, intervalMs = 500 }: Params
             const updates: MonitorRowData[] = [];
 
             for (const trade of targets) {
-                // Skip if this row isn't currently rendered (parent collapsed)
                 if (!api.getRowNode(trade.id)) continue;
 
                 const changePercent = Math.random() * 0.04 - 0.02;

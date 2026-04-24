@@ -1,4 +1,3 @@
-// hooks/useRegions.ts
 import { useQuery } from "@tanstack/react-query";
 import {
     paginatedRegionSchema,

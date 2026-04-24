@@ -12,17 +12,14 @@ export function HierarchyCellRenderer(
 
     if (!data) return null;
 
-    // ── Child row ─────────────────────────────────────────────────────────────
     if (isTradeRow(data)) {
         return (
             <div className="pl-8 flex items-center text-sm text-gray-600">
-                <span className="mr-2 text-gray-400">↳</span>
                 {value}
             </div>
         );
     }
 
-    // ── Parent row ────────────────────────────────────────────────────────────
     const isExpanded = context.isExpanded(data.id);
 
     const handleToggle = async (e: React.MouseEvent) => {

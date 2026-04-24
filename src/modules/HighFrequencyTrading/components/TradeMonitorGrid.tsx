@@ -31,15 +31,7 @@ import {
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 type SortState = { field: string; direction: "asc" | "desc" } | null;
-
-// ── Sort helper ───────────────────────────────────────────────────────────────
-//
-// AG Grid's built-in sort is disabled (comparator: () => 0) because our rows
-// are a manually constructed flat array — sorting must happen on parents only,
-// before children are injected.
 
 function cmp(a: string | number, b: string | number, dir: "asc" | "desc"): number {
     if (a < b) return dir === "asc" ? -1 : 1;
@@ -63,8 +55,6 @@ function sortParents(rows: MonitorRowData[], sort: SortState): MonitorRowData[] 
     return [...rows].sort((a, b) => cmp(sortValue(a, sort.field), sortValue(b, sort.field), sort.direction));
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export function TradeMonitorGrid() {
     const gridRef = useRef<AgGridReact<MonitorRowData>>(null);
 
@@ -76,8 +66,6 @@ export function TradeMonitorGrid() {
 
     const [sort, setSort] = useState<SortState>(null);
 
-    // ── Data fetching ─────────────────────────────────────────────────────────
-
     const { data, isLoading, isError } = useRegions({
         page: currentPage,
         perPage: pageSize,
@@ -86,19 +74,13 @@ export function TradeMonitorGrid() {
 
     const paginationRange = usePagination(data?.items ?? 0, pageSize, currentPage);
 
-    // ── Hierarchy ─────────────────────────────────────────────────────────────
-
     const { mutateAsync: fetchTrades } = useLazyFetchTrades();
     const hierarchy = useHierarchyStore(fetchTrades);
-
-    // ── Visible rows ──────────────────────────────────────────────────────────
 
     const visibleRows = useMemo(() => {
         const sorted = sortParents(data?.data ?? [], sort);
         return hierarchy.getVisibleRows(sorted);
     }, [data, hierarchy, sort]);
-
-    // ── AG Grid context ───────────────────────────────────────────────────────
 
     const gridContext = useMemo(
         () => ({
@@ -118,11 +100,7 @@ export function TradeMonitorGrid() {
         [],
     );
 
-    // ── Real-time updates ─────────────────────────────────────────────────────
-
     useTradeUpdates({ gridRef, hierarchy });
-
-    // ── Render ────────────────────────────────────────────────────────────────
 
     if (isError) {
         return <div className="p-4 text-red-600">Failed to load regions.</div>;
@@ -141,7 +119,7 @@ export function TradeMonitorGrid() {
                 className="border px-3 py-2 rounded"
             />
 
-            <div style={{ height: 500 }}>
+            <div style={{ height: 700 }}>
                 <AgGridReact<MonitorRowData>
                     ref={gridRef}
                     theme={themeQuartz}
@@ -150,7 +128,7 @@ export function TradeMonitorGrid() {
                     defaultColDef={defaultColDef}
                     getRowId={getRowId}
                     context={gridContext}
-                    loading={isLoading}
+                    loading={isLoading} 
                     onSortChanged={(e) => {
                         const sorted = e.api.getColumnState().find((c) => c.sort != null);
                         setSort(

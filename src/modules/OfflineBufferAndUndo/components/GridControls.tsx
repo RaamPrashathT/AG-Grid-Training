@@ -118,8 +118,8 @@ export const GridControls: React.FC<GridControlsProps> = ({
         </div>
       </div>
 
-      <div className="grid gap-1">
-        <label htmlFor="filterThreshold" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className=" flex items-center gap-2">
+        <label htmlFor="filterThreshold" className="text-xs font-semibold  tracking-wide text-muted-foreground">
           External filter: weight x quantity greater than
         </label>
         <input

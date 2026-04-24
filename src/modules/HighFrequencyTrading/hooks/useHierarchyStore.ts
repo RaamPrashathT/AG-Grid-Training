@@ -9,15 +9,12 @@ export type MonitorRowData = GridRowData & {
 export function useHierarchyStore(
     fetchTrades: (parentId: string) => Promise<Trade[]>,
 ) {
-    // Refs for mutable state that shouldn't trigger renders on their own
-    const expanded         = useRef<Set<string>>(new Set());
+    const expanded = useRef<Set<string>>(new Set());
     const childrenByParent = useRef<Map<string, Trade[]>>(new Map());
-    const parentTotals     = useRef<Map<string, number>>(new Map());
+    const parentTotals = useRef<Map<string, number>>(new Map());
 
     const [, forceRender] = useState(0);
     const rerender = () => forceRender((n) => n + 1);
-
-    // ── Expand / Collapse ─────────────────────────────────────────────────────
 
     const toggle = useCallback(
         async (parentId: string) => {
@@ -27,7 +24,6 @@ export function useHierarchyStore(
                 return;
             }
 
-            // Fetch and cache children only once
             if (!childrenByParent.current.has(parentId)) {
                 const children = await fetchTrades(parentId);
                 childrenByParent.current.set(parentId, children);
@@ -48,12 +44,6 @@ export function useHierarchyStore(
         [],
     );
 
-    // ── Flat row list for AG Grid ─────────────────────────────────────────────
-    //
-    // Parents come from the server (already paged / filtered / sorted).
-    // Children are injected inline so they always follow their parent,
-    // regardless of any sort, search, or pagination applied to parents.
-
     const getVisibleRows = useCallback(
         (parents: GridRowData[]): MonitorRowData[] => {
             const rows: MonitorRowData[] = [];
@@ -65,7 +55,8 @@ export function useHierarchyStore(
                 });
 
                 if (expanded.current.has(parent.id)) {
-                    const children = childrenByParent.current.get(parent.id) ?? [];
+                    const children =
+                        childrenByParent.current.get(parent.id) ?? [];
                     rows.push(...children);
                 }
             }
@@ -75,11 +66,6 @@ export function useHierarchyStore(
         [],
     );
 
-    // ── Real-time price update ────────────────────────────────────────────────
-    //
-    // Returns new objects — does NOT mutate in place.
-    // AG Grid's applyTransactionAsync picks up the change via row ID.
-
     const updateTrade = useCallback(
         (
             trade: Trade,
@@ -87,20 +73,28 @@ export function useHierarchyStore(
         ): { updatedTrade: Trade; updatedParentTotal: number } => {
             const delta = newPrice - trade.price;
 
-            // Replace the cached entry with a new object
             const siblings = childrenByParent.current.get(trade.parentId);
             if (siblings) {
                 const idx = siblings.findIndex((t) => t.id === trade.id);
                 if (idx !== -1) {
-                    siblings[idx] = { ...trade, price: newPrice, prevPrice: trade.price };
+                    siblings[idx] = {
+                        ...trade,
+                        price: newPrice,
+                        prevPrice: trade.price,
+                    };
                 }
             }
 
-            const newTotal = (parentTotals.current.get(trade.parentId) ?? 0) + delta;
+            const newTotal =
+                (parentTotals.current.get(trade.parentId) ?? 0) + delta;
             parentTotals.current.set(trade.parentId, newTotal);
 
             return {
-                updatedTrade:       { ...trade, price: newPrice, prevPrice: trade.price },
+                updatedTrade: {
+                    ...trade,
+                    price: newPrice,
+                    prevPrice: trade.price,
+                },
                 updatedParentTotal: newTotal,
             };
         },
